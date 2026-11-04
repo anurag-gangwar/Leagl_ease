@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}History{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <a href="{{ url_for('index') }}" class="breadcrumb-link"><i class="bi bi-house"></i></a>
+      <i class="bi bi-chevron-right text-muted"></i>
+      <span class="breadcrumb-current">History</span>
+    </div>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div>
+        <h1 class="page-title mb-1">Analysis History</h1>
+        <p class="page-subtitle mb-0">All your contract analyses in one place.</p>
+      </div>
+      <a href="{{ url_for('upload') }}" class="btn btn-accent">
+        <i class="bi bi-plus-circle me-2"></i>New Analysis
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+
+  {% if contracts.items %}
+
+  <!-- Summary Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-4">
+      <div class="metric-card risk-total-card">
+        <div class="metric-icon"><i class="bi bi-files"></i></div>
+        <div class="metric-val">{{ contracts.total }}</div>
+        <div class="metric-label">Total Contracts</div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="metric-card risk-high-card">
+        <div class="metric-icon"><i class="bi bi-exclamation-octagon"></i></div>
+        <div class="metric-val">
+          {{ contracts.items | selectattr('risk_score', 'equalto', 'High') | list | length }}
+        </div>
+        <div class="metric-label">High Risk Contracts</div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="metric-card risk-low-card">
+        <div class="metric-icon"><i class="bi bi-check-circle"></i></div>
+        <div class="metric-val">
+          {{ contracts.items | selectattr('status', 'equalto', 'completed') | list | length }}
+        </div>
+        <div class="metric-label">Completed Analyses</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contracts Table -->
+  <div class="history-table-card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>File Name</th>
+            <th>Type</th>
+            <th>Language</th>
+            <th>Risk</th>
+            <th>Clauses</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contract in contracts.items %}
+          <tr class="contract-row">
+            <td class="text-muted small">{{ contract.id }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="file-type-icon pdf">
+                  <i class="bi bi-file-earmark-text"></i>
+                </span>
+                <span class="filename-text" title="{{ contract.filename }}">
+                  {{ contract.filename | truncate(30) }}
+                </span>
+              </div>
+            </td>
+            <td>
+              <span class="contract-type-chip">{{ contract.contract_type or '—' }}</span>
+            </td>
+            <td>
+              <span class="lang-chip">
+                {% if contract.language in languages %}
+                  {{ languages[contract.language].flag }}
+                {% endif %}
+                {{ contract.language | title }}
+              </span>
+            </td>
+            <td>
+              {% if contract.risk_score != 'Unknown' %}
+                <span class="risk-badge risk-{{ contract.risk_score | lower }}">
+                  {{ contract.risk_score }}
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="d-flex gap-1">
+                <span class="mini-count high">{{ contract.high_clauses()|length }}H</span>
+                <span class="mini-count medium">{{ contract.medium_clauses()|length }}M</span>
+                <span class="mini-count low">{{ contract.low_clauses()|length }}L</span>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge status-{{ contract.status }}">
+                {% if contract.status == 'completed' %}
+                  <i class="bi bi-check-circle me-1"></i>Done
+                {% elif contract.status == 'processing' %}
+                  <i class="bi bi-hourglass-split me-1"></i>Processing
+                {% elif contract.status == 'error' %}
+                  <i class="bi bi-exclamation-circle me-1"></i>Error
+                {% else %}
+                  <i class="bi bi-clock me-1"></i>Pending
+                {% endif %}
+              </span>
+            </td>
+            <td class="text-muted small">
+              {{ contract.created_at.strftime('%d %b %Y') }}
+            </td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="{{ url_for('analyze', contract_id=contract.id) }}"
+                   class="btn btn-icon btn-outline-primary" title="View Analysis">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{{ url_for('chatbot', contract_id=contract.id) }}"
+                   class="btn btn-icon btn-outline-secondary" title="Chat">
+                  <i class="bi bi-chat-dots"></i>
+                </a>
+                {% if contract.status == 'completed' %}
+                <a href="{{ url_for('download_report', contract_id=contract.id, fmt='pdf') }}"
+                   class="btn btn-icon btn-outline-danger" title="Download PDF">
+                  <i class="bi bi-download"></i>
+                </a>
+                {% endif %}
+                <form action="{{ url_for('delete_contract', contract_id=contract.id) }}"
+                      method="POST" class="d-inline"
+                      onsubmit="return confirm('Delete this contract and all analysis data?')">
+                  <button type="submit" class="btn btn-icon btn-outline-danger" title="Delete">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if contracts.pages > 1 %}
+  <nav class="mt-4">
+    <ul class="pagination justify-content-center">
+      <li class="page-item {% if not contracts.has_prev %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('history', page=contracts.prev_num) }}">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+      </li>
+      {% for p in contracts.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {% if p == contracts.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('history', page=p) }}">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {% if not contracts.has_next %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('history', page=contracts.next_num) }}">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <!-- Empty State -->
+  <div class="empty-state-page text-center py-5">
+    <div class="empty-icon mb-4">📄</div>
+    <h3 class="empty-title">No Contracts Yet</h3>
+    <p class="empty-subtitle text-muted mb-4">
+      Upload your first contract to get started with AI-powered analysis.
+    </p>
+    <a href="{{ url_for('upload') }}" class="btn btn-accent btn-lg px-5">
+      <i class="bi bi-cloud-upload me-2"></i>Upload Your First Contract
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

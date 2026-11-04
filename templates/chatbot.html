@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+{% block title %}Chat — {{ contract.filename }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <a href="{{ url_for('index') }}" class="breadcrumb-link"><i class="bi bi-house"></i></a>
+      <i class="bi bi-chevron-right text-muted"></i>
+      <a href="{{ url_for('analyze', contract_id=contract.id) }}" class="breadcrumb-link">Analysis</a>
+      <i class="bi bi-chevron-right text-muted"></i>
+      <span class="breadcrumb-current">Chat</span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div>
+        <h1 class="page-title mb-1">Ask About Your Contract</h1>
+        <p class="page-subtitle mb-0">
+          <span class="contract-chip">
+            <i class="bi bi-file-earmark-text me-1"></i>{{ contract.filename }}
+          </span>
+          &nbsp;·&nbsp;Responses in English + {{ contract.language | title }}
+        </p>
+      </div>
+      <a href="{{ url_for('analyze', contract_id=contract.id) }}"
+         class="btn btn-outline-secondary btn-sm ms-auto">
+        <i class="bi bi-arrow-left me-1"></i>Back to Analysis
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="container py-4">
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="chat-container">
+        <div class="chat-messages" id="chatMessages" aria-live="polite">
+          <div class="chat-msg assistant-msg">
+            <div class="msg-avatar">⚖️</div>
+            <div class="msg-bubble">
+              <p class="mb-1">
+                <strong>Namaste!</strong> I've read your contract <em>{{ contract.filename }}</em>.
+                Ask me anything — in English or {{ contract.language | title }}.
+              </p>
+              <p class="mb-0 text-muted" style="font-size:0.85rem;">
+                I'll reply in English and {{ contract.language | title }} where translation is available.
+              </p>
+            </div>
+          </div>
+
+          {% for msg in messages %}
+          <div class="chat-msg {{ 'user-msg' if msg.role == 'user' else 'assistant-msg' }}">
+            {% if msg.role == 'assistant' %}
+            <div class="msg-avatar">⚖️</div>
+            {% endif %}
+            <div class="msg-bubble"><div class="msg-content">{{ msg.content | nl2br | safe }}</div></div>
+            {% if msg.role == 'user' %}
+            <div class="msg-avatar user-avatar"><i class="bi bi-person"></i></div>
+            {% endif %}
+          </div>
+          {% endfor %}
+
+          <div class="chat-msg assistant-msg d-none" id="typingIndicator" aria-label="Assistant is typing">
+            <div class="msg-avatar">⚖️</div>
+            <div class="msg-bubble typing-bubble"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          {% if contract.status != 'completed' %}
+          <div class="alert alert-warning py-2 mb-3" role="status">
+            Finish the contract analysis before asking questions.
+          </div>
+          {% endif %}
+          <div class="d-flex gap-2 align-items-end">
+            <div class="flex-fill">
+              <label class="visually-hidden" for="chatInput">Question about this contract</label>
+              <textarea
+                id="chatInput"
+                class="form-control chat-textarea"
+                placeholder="Ask anything about your contract… (English or {{ contract.language | title }})"
+                rows="2"
+                maxlength="500"
+                {% if contract.status != 'completed' %}disabled{% endif %}
+              ></textarea>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-voice" id="voiceBtn" title="Voice input" {% if contract.status != 'completed' %}disabled{% endif %}>
+              <i class="bi bi-mic-fill"></i>
+            </button>
+            <button type="button" class="btn btn-accent btn-send" id="sendBtn" title="Send message" {% if contract.status != 'completed' %}disabled{% endif %}>
+              <i class="bi bi-send-fill"></i>
+            </button>
+          </div>
+          <div class="chat-input-hint">Press <kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for a new line</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="chat-sidebar">
+        <h6 class="sidebar-heading mb-3"><i class="bi bi-lightbulb me-2"></i>Suggested Questions</h6>
+        {% set suggestions = [
+          'What is the contract duration and when does it expire?',
+          'Are there any auto-renewal clauses I should know about?',
+          'What happens if I want to terminate this contract early?',
+          'Am I liable for unlimited damages under this contract?',
+          'What data is being shared with third parties?',
+          'What are the payment terms and late penalties?',
+          'Explain the non-compete clause in simple terms.',
+          'What should I negotiate before signing?'
+        ] %}
+        <div class="suggestion-list">
+          {% for suggestion in suggestions %}
+          <button type="button" class="suggestion-btn" data-text="{{ suggestion }}">
+            <i class="bi bi-arrow-right-circle me-2"></i>{{ suggestion }}
+          </button>
+          {% endfor %}
+        </div>
+
+        <hr class="my-4" />
+        <h6 class="sidebar-heading mb-3"><i class="bi bi-file-earmark-text me-2"></i>Contract Info</h6>
+        <div class="contract-info-list">
+          <div class="info-row"><span class="info-label">Type</span><span class="info-val">{{ contract.contract_type }}</span></div>
+          <div class="info-row"><span class="info-label">Language</span><span class="info-val">{{ contract.language | title }}</span></div>
+          <div class="info-row">
+            <span class="info-label">Risk</span>
+            <span class="info-val"><span class="risk-badge risk-{{ contract.risk_score | lower }}">{{ contract.risk_score }}</span></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Red Flags</span>
+            <span class="info-val text-danger fw-bold">{{ contract.red_flag_clauses()|length }}</span>
+          </div>
+        </div>
+
+        <div class="mt-4 d-grid gap-2">
+          <a href="{{ url_for('analyze', contract_id=contract.id) }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-bar-chart me-1"></i>View Full Analysis
+          </a>
+          <a href="{{ url_for('download_report', contract_id=contract.id, fmt='pdf') }}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-download me-1"></i>Download Report
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const CONTRACT_ID = {{ contract.id }};
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const typingIndicator = document.getElementById('typingIndicator');
+
+function scrollToBottom() {
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function makeAvatar(role) {
+  const avatar = document.createElement('div');
+  avatar.className = role === 'user' ? 'msg-avatar user-avatar' : 'msg-avatar';
+  if (role === 'user') {
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-person';
+    avatar.append(icon);
+  } else {
+    avatar.textContent = '⚖️';
+  }
+  return avatar;
+}
+
+function appendMessage(role, content = '') {
+  const message = document.createElement('div');
+  message.className = 'chat-msg ' + (role === 'user' ? 'user-msg' : 'assistant-msg');
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'msg-content';
+  contentDiv.textContent = content;
+  bubble.append(contentDiv);
+
+  let speakButton = null;
+  if (role === 'assistant') {
+    speakButton = document.createElement('button');
+    speakButton.type = 'button';
+    speakButton.className = 'btn-speak btn-sm ms-2';
+    speakButton.title = 'Listen';
+    speakButton.disabled = !content;
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-volume-up';
+    speakButton.append(icon);
+    speakButton.addEventListener('click', () => speakText(contentDiv.textContent));
+    bubble.append(speakButton);
+    message.append(makeAvatar(role), bubble);
+  } else {
+    message.append(bubble, makeAvatar(role));
+  }
+
+  chatMessages.insertBefore(message, typingIndicator);
+  scrollToBottom();
+  return { message, contentDiv, speakButton };
+}
+
+function setTyping(visible) {
+  typingIndicator.classList.toggle('d-none', !visible);
+  scrollToBottom();
+}
+
+function displayError(chatMessage, message) {
+  chatMessage.contentDiv.textContent = '⚠️ ' + message;
+  chatMessage.message.classList.add('chat-error');
+  if (chatMessage.speakButton) chatMessage.speakButton.remove();
+  scrollToBottom();
+}
+
+function parseEvent(eventText) {
+  const dataLine = eventText.split(/\r?\n/).find(line => line.startsWith('data:'));
+  if (!dataLine) return null;
+  try {
+    return JSON.parse(dataLine.slice(5).trim());
+  } catch (_) {
+    return null;
+  }
+}
+
+async function readEventStream(response, onEvent) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  const processBuffer = () => {
+    let delimiter;
+    while ((delimiter = buffer.search(/\r?\n\r?\n/)) !== -1) {
+      const event = parseEvent(buffer.slice(0, delimiter));
+      const separator = buffer.match(/\r?\n\r?\n/)[0];
+      buffer = buffer.slice(delimiter + separator.length);
+      if (event) onEvent(event);
+    }
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    processBuffer();
+  }
+  buffer += decoder.decode();
+  processBuffer();
+  if (buffer.trim()) {
+    const event = parseEvent(buffer);
+    if (event) onEvent(event);
+  }
+}
+
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text || sendBtn.disabled) return;
+
+  appendMessage('user', text);
+  chatInput.value = '';
+  sendBtn.disabled = true;
+  setTyping(true);
+  const aiMessage = appendMessage('assistant');
+  let answer = '';
+  let completed = false;
+
+  try {
+    const response = await fetch('/api/chat/' + CONTRACT_ID, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+      body: JSON.stringify({ message: text }),
+    });
+
+    if (!response.ok || !response.body) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || 'The chat service is unavailable. Please try again.');
+    }
+
+    await readEventStream(response, event => {
+      if (event.type === 'chunk') {
+        answer += event.text || '';
+        aiMessage.contentDiv.textContent = answer;
+        aiMessage.speakButton.disabled = !answer;
+        scrollToBottom();
+      } else if (event.type === 'error') {
+        throw new Error(event.message || 'The chat service is unavailable. Please try again.');
+      } else if (event.type === 'done') {
+        completed = true;
+      }
+    });
+
+    if (!completed) throw new Error('The chat response ended early. Please try again.');
+  } catch (error) {
+    const message = error && error.message
+      ? error.message
+      : 'The chat service is unavailable. Please try again.';
+    displayError(aiMessage, message);
+  } finally {
+    setTyping(false);
+    sendBtn.disabled = false;
+    chatInput.focus();
+  }
+}
+
+function speakText(text) {
+  if (!window.speechSynthesis || !text.trim()) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1;
+  window.speechSynthesis.speak(utterance);
+}
+
+const voiceBtn = document.getElementById('voiceBtn');
+if (voiceBtn) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-IN';
+
+    voiceBtn.addEventListener('click', () => {
+      recognition.start();
+      voiceBtn.classList.add('btn-danger');
+      voiceBtn.title = 'Listening…';
+    });
+    recognition.onresult = event => {
+      chatInput.value = event.results[0][0].transcript;
+      sendMessage();
+    };
+    recognition.onerror = recognition.onend = () => {
+      voiceBtn.classList.remove('btn-danger');
+      voiceBtn.title = 'Voice input';
+    };
+  } else {
+    voiceBtn.hidden = true;
+  }
+}
+
+sendBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendMessage();
+  }
+});
+document.querySelectorAll('.suggestion-btn').forEach(button => {
+  button.addEventListener('click', () => {
+    chatInput.value = button.dataset.text;
+    chatInput.focus();
+  });
+});
+scrollToBottom();
+</script>
+{% endblock %}

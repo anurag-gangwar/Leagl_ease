@@ -1,0 +1,400 @@
+{% extends 'base.html' %}
+{% block title %}Analysis — {{ contract.filename }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+      <a href="{{ url_for('index') }}" class="breadcrumb-link"><i class="bi bi-house"></i></a>
+      <i class="bi bi-chevron-right text-muted"></i>
+      <a href="{{ url_for('history') }}" class="breadcrumb-link">History</a>
+      <i class="bi bi-chevron-right text-muted"></i>
+      <span class="breadcrumb-current text-truncate" style="max-width:200px;">
+        {{ contract.filename }}
+      </span>
+    </div>
+    <div class="d-flex flex-wrap align-items-start gap-3">
+      <div>
+        <h1 class="page-title mb-1">Contract Analysis</h1>
+        <p class="page-subtitle">
+          {{ contract.filename }} ·
+          <span class="text-muted">{{ contract.contract_type }}</span> ·
+          <span class="badge risk-badge-{{ contract.risk_score | lower }} ms-1">
+            {{ contract.risk_score }} Risk
+          </span>
+        </p>
+      </div>
+      <div class="ms-auto d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('chatbot', contract_id=contract.id) }}"
+           class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-chat-dots me-1"></i>Ask Questions
+        </a>
+        <a href="{{ url_for('report', contract_id=contract.id) }}"
+           class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-file-earmark-text me-1"></i>Full Report
+        </a>
+        <a href="{{ url_for('download_report', contract_id=contract.id, fmt='pdf') }}"
+           class="btn btn-accent btn-sm">
+          <i class="bi bi-download me-1"></i>PDF
+        </a>
+        <a href="{{ url_for('download_report', contract_id=contract.id, fmt='docx') }}"
+           class="btn btn-outline-success btn-sm">
+          <i class="bi bi-download me-1"></i>DOCX
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-4">
+
+  {% if contract.status == 'error' %}
+  <div class="alert alert-danger">
+    <strong>Analysis Failed.</strong>
+    <p class="mt-2">{{ safe_error_message(contract.summary) }}</p>
+    <hr/>
+    <p class="mb-1"><strong>Things to check:</strong></p>
+    <ul>
+      <li>Make sure the AI service is configured in your local <code>.env</code> file.</li>
+      <li>Check that your internet connection is available.</li>
+      <li>Retry the analysis after restarting the app if you recently changed settings.</li>
+    </ul>
+    <a href="{{ url_for('upload') }}" class="btn btn-sm btn-outline-danger">
+      Try Again
+    </a>
+  </div>
+  {% elif contract.status == 'processing' %}
+
+  <!-- ── Summary Cards ── -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+      <div class="metric-card risk-high-card">
+        <div class="metric-icon"><i class="bi bi-exclamation-octagon"></i></div>
+        <div class="metric-val">{{ sev_counts.High }}</div>
+        <div class="metric-label">High Risk Clauses</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="metric-card risk-medium-card">
+        <div class="metric-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="metric-val">{{ sev_counts.Medium }}</div>
+        <div class="metric-label">Medium Risk Clauses</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="metric-card risk-low-card">
+        <div class="metric-icon"><i class="bi bi-check-circle"></i></div>
+        <div class="metric-val">{{ sev_counts.Low }}</div>
+        <div class="metric-label">Low Risk Clauses</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="metric-card risk-total-card">
+        <div class="metric-icon"><i class="bi bi-flag"></i></div>
+        <div class="metric-val">{{ contract.red_flag_clauses()|length }}</div>
+        <div class="metric-label">Red Flags Detected</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main Content Row ── -->
+  <div class="row g-4">
+
+    <!-- Left: Summary + Chart -->
+    <div class="col-lg-4">
+
+      <!-- Risk Donut Chart -->
+      <div class="analysis-panel mb-4">
+        <h5 class="panel-title"><i class="bi bi-pie-chart me-2"></i>Risk Dashboard</h5>
+        <div class="chart-container-sm">
+          <canvas id="riskChart"></canvas>
+        </div>
+        <div class="chart-legend mt-3">
+          <div class="legend-item">
+            <span class="legend-dot" style="background:#dc3545"></span>
+            High Risk ({{ sev_counts.High }})
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot" style="background:#ffc107"></span>
+            Medium Risk ({{ sev_counts.Medium }})
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot" style="background:#28a745"></span>
+            Low Risk ({{ sev_counts.Low }})
+          </div>
+        </div>
+      </div>
+
+      <!-- English Summary -->
+      {% if contract.summary %}
+      <div class="analysis-panel mb-4">
+        <h5 class="panel-title"><i class="bi bi-file-text me-2"></i>English Summary</h5>
+        <p class="summary-text">{{ contract.summary }}</p>
+      </div>
+      {% endif %}
+
+      <!-- Regional Language Summary -->
+      {% if contract.translated_summary %}
+      <div class="analysis-panel mb-4 translated-panel">
+        <h5 class="panel-title">
+          🌐 {{ contract.language | title }} Summary
+        </h5>
+        <p class="summary-text regional-text">{{ contract.translated_summary }}</p>
+      </div>
+      {% endif %}
+
+      <!-- Quick Actions -->
+      <div class="analysis-panel">
+        <h5 class="panel-title"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+        <div class="d-grid gap-2">
+          <a href="{{ url_for('chatbot', contract_id=contract.id) }}"
+             class="btn btn-primary">
+            <i class="bi bi-chat-dots me-2"></i>Ask Questions About This Contract
+          </a>
+          <a href="{{ url_for('report', contract_id=contract.id) }}"
+             class="btn btn-outline-secondary">
+            <i class="bi bi-eye me-2"></i>View Full Report
+          </a>
+          <a href="{{ url_for('download_report', contract_id=contract.id, fmt='pdf') }}"
+             class="btn btn-outline-danger">
+            <i class="bi bi-file-earmark-pdf me-2"></i>Download PDF Report
+          </a>
+          <a href="{{ url_for('download_report', contract_id=contract.id, fmt='docx') }}"
+             class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-word me-2"></i>Download DOCX Report
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Clause List -->
+    <div class="col-lg-8">
+      <div class="analysis-panel">
+        <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+          <h5 class="panel-title mb-0">
+            <i class="bi bi-list-check me-2"></i>Clause Analysis
+            <span class="badge bg-secondary ms-2">{{ clauses | length }}</span>
+          </h5>
+
+          <!-- Filter Buttons -->
+          <div class="clause-filters btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-secondary active" data-filter="all">
+              All
+            </button>
+            <button type="button" class="btn btn-outline-danger" data-filter="High">
+              🔴 High
+            </button>
+            <button type="button" class="btn btn-outline-warning" data-filter="Medium">
+              🟡 Med
+            </button>
+            <button type="button" class="btn btn-outline-success" data-filter="Low">
+              🟢 Low
+            </button>
+            <button type="button" class="btn btn-outline-dark" data-filter="redflag">
+              🚩 Flags
+            </button>
+          </div>
+        </div>
+
+        <!-- Clause Cards -->
+        <div id="clauseList">
+          {% if clauses %}
+            {% for clause in clauses %}
+            <div class="clause-card severity-{{ clause.severity | lower }}
+                        {% if clause.is_red_flag %}is-red-flag{% endif %}"
+                 data-severity="{{ clause.severity }}"
+                 data-redflag="{{ 'true' if clause.is_red_flag else 'false' }}">
+
+              <div class="clause-card-header">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  {% if clause.is_red_flag %}
+                    <span class="red-flag-badge">🚩 Red Flag</span>
+                  {% endif %}
+                  <span class="clause-type-badge">{{ clause.clause_type or 'General' }}</span>
+                </div>
+                <span class="severity-pill severity-{{ clause.severity | lower }}">
+                  {{ clause.severity_icon() }} {{ clause.severity }}
+                </span>
+              </div>
+
+              <div class="clause-card-body">
+                <!-- Original text (collapsed) -->
+                {% if clause.original_text %}
+                <details class="clause-original mb-2">
+                  <summary class="clause-original-label">
+                    <i class="bi bi-file-text me-1"></i>Original Clause Text
+                  </summary>
+                  <p class="clause-original-text">{{ clause.original_text }}</p>
+                </details>
+                {% endif %}
+
+                <!-- Plain English -->
+                {% if clause.simplified_text %}
+                <div class="clause-simplified mb-2">
+                  <div class="clause-section-label">
+                    <i class="bi bi-translate me-1"></i>Plain English
+                  </div>
+                  <p class="mb-0">{{ clause.simplified_text }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Regional Translation -->
+                {% if clause.translated_text %}
+                <div class="clause-translated mb-2">
+                  <div class="clause-section-label regional">
+                    🌐 {{ contract.language | title }}
+                  </div>
+                  <p class="mb-0 regional-text">{{ clause.translated_text }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Risk Explanation -->
+                {% if clause.explanation %}
+                <div class="clause-risk-box">
+                  <div class="clause-section-label risk">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Real-World Risk
+                  </div>
+                  <p class="mb-0">{{ clause.explanation }}</p>
+                </div>
+                {% endif %}
+              </div>
+
+              <!-- Compare Button (Bonus) -->
+              {% if clause.original_text %}
+              <div class="clause-card-footer">
+                <button class="btn btn-link btn-sm p-0 compare-btn"
+                        data-clause-text="{{ clause.original_text | e }}"
+                        data-clause-type="{{ clause.clause_type | e }}">
+                  <i class="bi bi-arrows-collapse me-1"></i>Compare with Standard Template
+                </button>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="empty-state text-center py-5">
+            <i class="bi bi-file-earmark-x fs-1 text-muted mb-3 d-block"></i>
+            <h5 class="text-muted">No clauses found</h5>
+            <p class="text-muted">The analysis did not return any clause data.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+
+<!-- Comparison Modal -->
+<div class="modal fade" id="compareModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-arrows-collapse me-2"></i>Standard Template Comparison
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="compareLoading" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-2 text-muted">Comparing with standard templates...</p>
+        </div>
+        <div id="compareResult" class="d-none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Risk Donut Chart ──
+const sevData = {{ sev_counts_json | tojson }};
+const riskCanvas = document.getElementById('riskChart');
+if (riskCanvas && typeof Chart !== 'undefined') {
+const ctx = riskCanvas.getContext('2d');
+new Chart(ctx, {
+  type: 'doughnut',
+  data: {
+    labels: ['High', 'Medium', 'Low'],
+    datasets: [{
+      data: [sevData.High, sevData.Medium, sevData.Low],
+      backgroundColor: ['#dc3545', '#ffc107', '#28a745'],
+      borderWidth: 0,
+      hoverOffset: 8,
+    }],
+  },
+  options: {
+    cutout: '68%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.label}: ${ctx.raw} clause(s)`,
+        },
+      },
+    },
+    animation: { animateRotate: true, duration: 900 },
+  },
+});
+}
+
+// ── Filter Buttons ──
+document.querySelectorAll('.clause-filters button').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.clause-filters button').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    const filter = this.dataset.filter;
+
+    document.querySelectorAll('.clause-card').forEach(card => {
+      if (filter === 'all') {
+        card.style.display = '';
+      } else if (filter === 'redflag') {
+        card.style.display = card.dataset.redflag === 'true' ? '' : 'none';
+      } else {
+        card.style.display = card.dataset.severity === filter ? '' : 'none';
+      }
+    });
+  });
+});
+
+// ── Compare Clause ──
+const compareModal = new bootstrap.Modal(document.getElementById('compareModal'));
+
+document.querySelectorAll('.compare-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const clauseText = this.dataset.clauseText;
+    const clauseType = this.dataset.clauseType;
+    const loading   = document.getElementById('compareLoading');
+    const result    = document.getElementById('compareResult');
+
+    loading.classList.remove('d-none');
+    result.classList.add('d-none');
+    compareModal.show();
+
+    fetch('/api/compare-clause', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clause_text: clauseText, clause_type: clauseType }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      loading.classList.add('d-none');
+      result.classList.remove('d-none');
+      const comparison = data.comparison || 'Comparison is unavailable right now.';
+      result.textContent = comparison;
+      result.className = 'comparison-text';
+    })
+    .catch(() => {
+      loading.classList.add('d-none');
+      result.classList.remove('d-none');
+      result.textContent = 'Comparison is temporarily unavailable. Please try again.';
+      result.className = 'comparison-text text-danger';
+    });
+  });
+});
+</script>
+{% endblock %}

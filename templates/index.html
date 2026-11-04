@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero Section ── -->
+<section class="hero-section">
+  <div class="hero-bg-pattern"></div>
+  <div class="container position-relative">
+    <div class="row align-items-center min-vh-75 py-5">
+      <div class="col-lg-6">
+        <div class="hero-badge mb-4">
+          <i class="bi bi-stars me-2"></i>AI-Powered Legal Analysis
+        </div>
+        <h1 class="hero-title mb-4">
+          Understand Every<br/>
+          <span class="text-gradient">Contract Clause</span><br/>
+          in Your Language
+        </h1>
+        <p class="hero-subtitle mb-5">
+          Upload any rental agreement, vendor contract, or employment bond.
+          Get a plain-language summary in Hindi, Tamil, Telugu &amp; more —
+          with red-flag warnings before you sign.
+        </p>
+        <div class="d-flex gap-3 flex-wrap">
+          <a href="{{ url_for('upload') }}" class="btn btn-accent btn-lg px-4">
+            <i class="bi bi-cloud-upload me-2"></i>Analyze My Contract
+          </a>
+          <a href="#how-it-works" class="btn btn-outline-light btn-lg px-4">
+            <i class="bi bi-play-circle me-2"></i>How It Works
+          </a>
+        </div>
+
+        <!-- Language badges -->
+        <div class="d-flex flex-wrap gap-2 mt-4">
+          {% for key, lang in languages.items() %}
+            <span class="hero-lang-badge">{{ lang.flag }} {{ lang.name }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-lg-5 offset-lg-1 d-none d-lg-block">
+        <div class="hero-card-stack">
+          <div class="hero-mock-card card-1">
+            <div class="mock-card-header">
+              <span class="mock-dot red"></span>
+              <span class="mock-dot yellow"></span>
+              <span class="mock-dot green"></span>
+              <span class="mock-card-title ms-2">contract.pdf</span>
+            </div>
+            <div class="mock-clause high">
+              <span class="mock-badge high-badge">HIGH</span>
+              <span class="mock-clause-text">Auto-Renewal Clause</span>
+            </div>
+            <div class="mock-clause medium">
+              <span class="mock-badge medium-badge">MED</span>
+              <span class="mock-clause-text">Unlimited Liability</span>
+            </div>
+            <div class="mock-clause low">
+              <span class="mock-badge low-badge">LOW</span>
+              <span class="mock-clause-text">Payment Terms</span>
+            </div>
+          </div>
+          <div class="hero-mock-card card-2">
+            <div class="mock-translation-label">🌐 Hindi Translation Ready</div>
+            <div class="mock-translation-preview">यह अनुबंध आपको बिना नोटिस के...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stats Bar ── -->
+<section class="stats-bar py-4">
+  <div class="container">
+    <div class="row g-3 text-center">
+      <div class="col-4">
+        <div class="stat-item">
+          <div class="stat-num">{{ total_contracts }}</div>
+          <div class="stat-label">Contracts Analyzed</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-item">
+          <div class="stat-num">{{ total_clauses }}</div>
+          <div class="stat-label">Clauses Reviewed</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-item">
+          <div class="stat-num">{{ red_flags_found }}</div>
+          <div class="stat-label">Red Flags Caught</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How It Works ── -->
+<section class="section-pad" id="how-it-works">
+  <div class="container">
+    <div class="section-header text-center mb-5">
+      <span class="section-tag">Simple Process</span>
+      <h2 class="section-title">How Legal-Ease Works</h2>
+      <p class="section-subtitle">From upload to understood in under 2 minutes.</p>
+    </div>
+
+    <div class="row g-4">
+      {% set steps = [
+        ('1', 'bi-cloud-upload', 'Upload Your Contract',
+         'Upload any PDF or plain-text contract. We handle rental agreements, vendor contracts, employment bonds, and more.'),
+        ('2', 'bi-cpu', 'AI Analyzes Every Clause',
+         'The AI reads every clause, detects red flags like auto-renewal, unlimited liability, and hidden fees — with severity scores.'),
+        ('3', 'bi-translate', 'Get Results in Your Language',
+         'Receive a plain-language summary translated into Hindi, Tamil, Telugu, Marathi, Bengali, Kannada, or Gujarati.'),
+        ('4', 'bi-file-earmark-pdf', 'Download Your Report',
+         'Download a detailed PDF or DOCX report with the full analysis, risk dashboard, and clause-by-clause breakdown.'),
+      ] %}
+      {% for num, icon, title, desc in steps %}
+      <div class="col-md-6 col-lg-3">
+        <div class="step-card">
+          <div class="step-num">{{ num }}</div>
+          <div class="step-icon-wrap">
+            <i class="bi {{ icon }}"></i>
+          </div>
+          <h5 class="step-title">{{ title }}</h5>
+          <p class="step-desc">{{ desc }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ── Red Flags We Detect ── -->
+<section class="section-pad bg-section-alt">
+  <div class="container">
+    <div class="section-header text-center mb-5">
+      <span class="section-tag">Protection</span>
+      <h2 class="section-title">Red Flags We Detect</h2>
+      <p class="section-subtitle">Hidden contract traps that cost Indian SMEs thousands of rupees every year.</p>
+    </div>
+
+    <div class="row g-3">
+      {% set flags = [
+        ('bi-arrow-repeat', 'Auto-Renewal Clauses', 'Contracts that silently renew — often with penalties for cancellation.'),
+        ('bi-infinity', 'Unlimited Liability', 'No cap on how much you owe if something goes wrong.'),
+        ('bi-x-circle', 'Unfair Termination', 'One-sided rights to end the contract without notice.'),
+        ('bi-currency-rupee', 'Hidden Fees', 'Charges buried in fine print that appear after signing.'),
+        ('bi-share', 'Data Sharing Clauses', 'Broad permission to share your business data with third parties.'),
+        ('bi-ban', 'Non-Compete Restrictions', 'Clauses that prevent you from working in your own industry.'),
+        ('bi-exclamation-triangle', 'Steep Penalty Clauses', 'Disproportionate fines for minor breaches.'),
+        ('bi-building', 'Forced Arbitration', 'Removes your right to go to court.'),
+      ] %}
+      {% for icon, title, desc in flags %}
+      <div class="col-sm-6 col-lg-3">
+        <div class="flag-card">
+          <i class="bi {{ icon }} flag-icon"></i>
+          <h6 class="flag-title">{{ title }}</h6>
+          <p class="flag-desc">{{ desc }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ── Recent Contracts ── -->
+{% if recent_contracts %}
+<section class="section-pad">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <span class="section-tag">Recent</span>
+        <h2 class="section-title mb-0">Recent Analyses</h2>
+      </div>
+      <a href="{{ url_for('history') }}" class="btn btn-outline-primary btn-sm">
+        View All <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+
+    <div class="row g-3">
+      {% for contract in recent_contracts %}
+      <div class="col-md-6 col-xl-4">
+        <div class="contract-card">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="contract-file-icon">
+              <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <span class="risk-badge risk-{{ contract.risk_score | lower }}">
+              {{ contract.risk_score }} Risk
+            </span>
+          </div>
+          <h6 class="contract-name text-truncate" title="{{ contract.filename }}">
+            {{ contract.filename }}
+          </h6>
+          <div class="contract-meta">
+            <span><i class="bi bi-tag me-1"></i>{{ contract.contract_type }}</span>
+            <span><i class="bi bi-translate me-1"></i>{{ contract.language | title }}</span>
+            <span><i class="bi bi-calendar3 me-1"></i>
+              {{ contract.created_at.strftime('%d %b %Y') }}
+            </span>
+          </div>
+
+          <!-- Clause counts -->
+          <div class="clause-counts mt-3">
+            <span class="count-pill high">
+              <i class="bi bi-circle-fill me-1"></i>{{ contract.high_clauses()|length }} High
+            </span>
+            <span class="count-pill medium">
+              <i class="bi bi-circle-fill me-1"></i>{{ contract.medium_clauses()|length }} Medium
+            </span>
+            <span class="count-pill low">
+              <i class="bi bi-circle-fill me-1"></i>{{ contract.low_clauses()|length }} Low
+            </span>
+          </div>
+
+          <div class="d-flex gap-2 mt-3">
+            <a href="{{ url_for('analyze', contract_id=contract.id) }}"
+               class="btn btn-primary btn-sm flex-fill">
+              <i class="bi bi-eye me-1"></i>View
+            </a>
+            <a href="{{ url_for('chatbot', contract_id=contract.id) }}"
+               class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-chat-dots"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ── CTA Section ── -->
+<section class="cta-section">
+  <div class="container text-center">
+    <h2 class="cta-title mb-3">Don't Sign Blind</h2>
+    <p class="cta-subtitle mb-5">
+      Upload your contract right now. Free, instant AI analysis.<br/>
+      Understand every clause before you commit.
+    </p>
+    <a href="{{ url_for('upload') }}" class="btn btn-accent btn-lg px-5">
+      <i class="bi bi-cloud-upload me-2"></i>Analyze My Contract Now
+    </a>
+  </div>
+</section>
+
+{% endblock %}

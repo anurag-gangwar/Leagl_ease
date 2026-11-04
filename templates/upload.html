@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+{% block title %}Upload Contract{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <a href="{{ url_for('index') }}" class="breadcrumb-link">
+        <i class="bi bi-house"></i>
+      </a>
+      <i class="bi bi-chevron-right text-muted"></i>
+      <span class="breadcrumb-current">Analyze Contract</span>
+    </div>
+    <h1 class="page-title">Upload Your Contract</h1>
+    <p class="page-subtitle">Upload a PDF or plain text file — we'll analyze every clause for you.</p>
+  </div>
+</div>
+
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+
+        <!-- File Drop Zone -->
+        <div class="upload-card mb-4">
+          <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-content" id="dropZoneContent">
+              <div class="drop-icon">
+                <i class="bi bi-cloud-upload"></i>
+              </div>
+              <h4 class="drop-title">Drag &amp; Drop your contract here</h4>
+              <p class="drop-subtitle">or click to browse files</p>
+              <input type="file" name="contract" id="contractFile"
+                     accept=".pdf,.txt" class="d-none" required />
+              <button type="button" class="btn btn-outline-primary mt-3" id="browseBtn">
+                <i class="bi bi-folder2-open me-2"></i>Browse Files
+              </button>
+              <p class="drop-formats mt-3">
+                <i class="bi bi-info-circle me-1"></i>
+                Supported: <strong>PDF</strong>, <strong>TXT</strong> · Max size: 16MB
+              </p>
+            </div>
+
+            <!-- File selected state -->
+            <div class="drop-zone-selected d-none" id="fileSelected">
+              <div class="selected-file-icon">
+                <i class="bi bi-file-earmark-check"></i>
+              </div>
+              <div>
+                <h5 class="selected-name mb-1" id="selectedFileName">—</h5>
+                <p class="selected-size text-muted mb-0" id="selectedFileSize">—</p>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-danger ms-auto" id="clearFile">
+                <i class="bi bi-x"></i> Remove
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Options Row -->
+        <div class="row g-4 mb-4">
+
+          <!-- Language Selector -->
+          <div class="col-md-6">
+            <div class="option-card">
+              <label class="option-label">
+                <i class="bi bi-translate me-2"></i>Output Language
+              </label>
+              <p class="option-hint">Get the analysis in your regional language.</p>
+              <div class="lang-grid">
+                {% for key, lang in languages.items() %}
+                <label class="lang-option">
+                  <input type="radio" name="language" value="{{ key }}"
+                         {% if key == 'hindi' %}checked{% endif %} />
+                  <span class="lang-option-inner">
+                    <span class="lang-flag">{{ lang.flag }}</span>
+                    <span class="lang-name">{{ lang.name }}</span>
+                  </span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Contract Type -->
+          <div class="col-md-6">
+            <div class="option-card h-100">
+              <label class="option-label" for="contractType">
+                <i class="bi bi-tag me-2"></i>Contract Type
+              </label>
+              <p class="option-hint">Help us tailor the analysis to your contract.</p>
+              <select name="contract_type" id="contractType" class="form-select form-select-lg mt-2">
+                {% for ctype in contract_types %}
+                  <option value="{{ ctype }}">{{ ctype }}</option>
+                {% endfor %}
+              </select>
+
+              <!-- Tips box -->
+              <div class="tips-box mt-4">
+                <h6 class="tips-title"><i class="bi bi-lightbulb me-2"></i>Tips</h6>
+                <ul class="tips-list">
+                  <li>Remove passwords from PDF before uploading</li>
+                  <li>Scanned PDFs need Tesseract OCR installed</li>
+                  <li>Plain text (.txt) gives fastest results</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="text-center">
+          <button type="submit" class="btn btn-accent btn-lg px-5" id="submitBtn" disabled>
+            <span class="btn-normal">
+              <i class="bi bi-cpu me-2"></i>Analyze Contract
+            </span>
+            <span class="btn-loading d-none">
+              <span class="spinner-border spinner-border-sm me-2"></span>Analyzing…
+            </span>
+          </button>
+          <p class="mt-3 text-muted small">
+            <i class="bi bi-shield-lock me-1"></i>
+            Your file is processed securely. We don't share your data.
+          </p>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- Sidebar Info -->
+    <div class="col-lg-3 ms-lg-auto d-none d-lg-block">
+      <div class="sidebar-info">
+        <h6 class="sidebar-heading">
+          <i class="bi bi-shield-check me-2"></i>What We Detect
+        </h6>
+        <ul class="detect-list">
+          <li><span class="detect-dot high"></span>Auto-Renewal Clauses</li>
+          <li><span class="detect-dot high"></span>Unlimited Liability</li>
+          <li><span class="detect-dot high"></span>One-sided Termination</li>
+          <li><span class="detect-dot medium"></span>Hidden Fees</li>
+          <li><span class="detect-dot medium"></span>Data Sharing</li>
+          <li><span class="detect-dot medium"></span>Non-Compete Clauses</li>
+          <li><span class="detect-dot low"></span>Penalty Clauses</li>
+          <li><span class="detect-dot low"></span>Arbitration Clauses</li>
+        </ul>
+      </div>
+
+      <div class="sidebar-info mt-3">
+        <h6 class="sidebar-heading">
+          <i class="bi bi-globe2 me-2"></i>Supported Languages
+        </h6>
+        <div class="d-flex flex-wrap gap-2">
+          {% for key, lang in languages.items() %}
+            <span class="lang-pill">{{ lang.flag }} {{ lang.name }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Processing Overlay -->
+<div class="processing-overlay d-none" id="processingOverlay">
+  <div class="processing-box">
+    <div class="processing-spinner">
+      <div class="spinner-ring"></div>
+      <span class="spinner-icon">⚖️</span>
+    </div>
+    <h4 class="processing-title">Analyzing Your Contract</h4>
+    <div class="processing-steps" id="processingSteps">
+      <div class="processing-step active" data-step="1">
+        <i class="bi bi-file-earmark-text me-2"></i>Parsing document...
+      </div>
+      <div class="processing-step" data-step="2">
+        <i class="bi bi-cpu me-2"></i>Running AI analysis...
+      </div>
+      <div class="processing-step" data-step="3">
+        <i class="bi bi-translate me-2"></i>Translating clauses...
+      </div>
+      <div class="processing-step" data-step="4">
+        <i class="bi bi-file-earmark-check me-2"></i>Generating report...
+      </div>
+    </div>
+    <p class="processing-note text-muted mt-3">
+      This may take 20–60 seconds depending on contract length.
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const dropZone     = document.getElementById('dropZone');
+  const fileInput    = document.getElementById('contractFile');
+  const browseBtn    = document.getElementById('browseBtn');
+  const dropContent  = document.getElementById('dropZoneContent');
+  const fileSelected = document.getElementById('fileSelected');
+  const fileNameEl   = document.getElementById('selectedFileName');
+  const fileSizeEl   = document.getElementById('selectedFileSize');
+  const clearBtn     = document.getElementById('clearFile');
+  const submitBtn    = document.getElementById('submitBtn');
+  const uploadForm   = document.getElementById('uploadForm');
+  const overlay      = document.getElementById('processingOverlay');
+
+  browseBtn.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('click', (e) => {
+    if (e.target === dropZone) fileInput.click();
+  });
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const files = e.dataTransfer.files;
+    if (files.length) setFile(files[0]);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) setFile(fileInput.files[0]);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    fileInput.value = '';
+    dropContent.classList.remove('d-none');
+    fileSelected.classList.add('d-none');
+    submitBtn.disabled = true;
+  });
+
+  function setFile(file) {
+    const allowedExts = ['pdf', 'txt'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowedExts.includes(ext)) {
+      alert('Only PDF and TXT files are supported.');
+      return;
+    }
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+
+    fileNameEl.textContent = file.name;
+    fileSizeEl.textContent = formatBytes(file.size);
+    dropContent.classList.add('d-none');
+    fileSelected.classList.remove('d-none');
+    submitBtn.disabled = false;
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  uploadForm.addEventListener('submit', function (e) {
+    if (fileInput.files.length === 0) { e.preventDefault(); return; }
+    submitBtn.querySelector('.btn-normal').classList.add('d-none');
+    submitBtn.querySelector('.btn-loading').classList.remove('d-none');
+    submitBtn.disabled = true;
+    overlay.classList.remove('d-none');
+
+    // Animate steps
+    let step = 1;
+    const stepInterval = setInterval(() => {
+      document.querySelectorAll('.processing-step').forEach(el => el.classList.remove('active'));
+      const next = document.querySelector(`[data-step="${step}"]`);
+      if (next) next.classList.add('active');
+      step++;
+      if (step > 4) clearInterval(stepInterval);
+    }, 5000);
+  });
+</script>
+{% endblock %}

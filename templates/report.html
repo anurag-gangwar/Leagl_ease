@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Report — {{ contract.filename }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <a href="{{ url_for('index') }}" class="breadcrumb-link"><i class="bi bi-house"></i></a>
+      <i class="bi bi-chevron-right text-muted"></i>
+      <a href="{{ url_for('analyze', contract_id=contract.id) }}" class="breadcrumb-link">Analysis</a>
+      <i class="bi bi-chevron-right text-muted"></i>
+      <span class="breadcrumb-current">Report</span>
+    </div>
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+      <div>
+        <h1 class="page-title mb-1">Full Report</h1>
+        <p class="page-subtitle mb-0">{{ contract.filename }} · {{ contract.created_at.strftime('%d %B %Y') }}</p>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('chatbot', contract_id=contract.id) }}"
+           class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-chat-dots me-1"></i>Chat
+        </a>
+        <a href="{{ url_for('download_report', contract_id=contract.id, fmt='pdf') }}"
+           class="btn btn-accent btn-sm">
+          <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+        </a>
+        <a href="{{ url_for('download_report', contract_id=contract.id, fmt='docx') }}"
+           class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-word me-1"></i>Download DOCX
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <div class="row">
+    <div class="col-lg-9 mx-auto">
+
+      <!-- Report Header Card -->
+      <div class="report-header-card mb-4">
+        <div class="report-logo">⚖️ Legal<span class="brand-accent">Ease</span></div>
+        <h2 class="report-title">Contract Analysis Report</h2>
+        <div class="report-meta-grid">
+          <div class="report-meta-item">
+            <span class="meta-label">File</span>
+            <span class="meta-val">{{ contract.filename }}</span>
+          </div>
+          <div class="report-meta-item">
+            <span class="meta-label">Type</span>
+            <span class="meta-val">{{ contract.contract_type or '—' }}</span>
+          </div>
+          <div class="report-meta-item">
+            <span class="meta-label">Language</span>
+            <span class="meta-val">{{ contract.language | title }}</span>
+          </div>
+          <div class="report-meta-item">
+            <span class="meta-label">Overall Risk</span>
+            <span class="meta-val">
+              <span class="risk-badge risk-{{ contract.risk_score | lower }}">
+                {{ contract.risk_score }}
+              </span>
+            </span>
+          </div>
+          <div class="report-meta-item">
+            <span class="meta-label">Date</span>
+            <span class="meta-val">{{ contract.created_at.strftime('%d %B %Y') }}</span>
+          </div>
+          <div class="report-meta-item">
+            <span class="meta-label">Total Clauses</span>
+            <span class="meta-val">{{ clauses | length }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Risk Dashboard -->
+      <div class="report-section mb-4">
+        <h3 class="report-section-title">
+          <i class="bi bi-pie-chart me-2"></i>Risk Dashboard
+        </h3>
+        <div class="row g-3 mb-4">
+          <div class="col-4">
+            <div class="risk-stat-card high">
+              <div class="risk-stat-num">{{ sev_counts.High }}</div>
+              <div class="risk-stat-label">🔴 High</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="risk-stat-card medium">
+              <div class="risk-stat-num">{{ sev_counts.Medium }}</div>
+              <div class="risk-stat-label">🟡 Medium</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="risk-stat-card low">
+              <div class="risk-stat-num">{{ sev_counts.Low }}</div>
+              <div class="risk-stat-label">🟢 Low</div>
+            </div>
+          </div>
+        </div>
+        <div style="max-height:280px; display:flex; justify-content:center;">
+          <canvas id="reportChart" style="max-width:280px;"></canvas>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      {% if contract.summary %}
+      <div class="report-section mb-4">
+        <h3 class="report-section-title">
+          <i class="bi bi-file-text me-2"></i>Summary (English)
+        </h3>
+        <p class="report-body">{{ contract.summary }}</p>
+      </div>
+      {% endif %}
+
+      {% if contract.translated_summary %}
+      <div class="report-section mb-4 translated-section">
+        <h3 class="report-section-title">
+          🌐 Summary in {{ contract.language | title }}
+        </h3>
+        <p class="report-body regional-text">{{ contract.translated_summary }}</p>
+      </div>
+      {% endif %}
+
+      <!-- Clauses -->
+      <div class="report-section">
+        <h3 class="report-section-title">
+          <i class="bi bi-list-check me-2"></i>Clause-by-Clause Analysis
+        </h3>
+
+        {% for clause in clauses %}
+        <div class="report-clause severity-{{ clause.severity | lower }}
+                    {% if clause.is_red_flag %}red-flag-clause{% endif %} mb-3">
+          <div class="report-clause-header">
+            <div class="d-flex align-items-center gap-2">
+              {% if clause.is_red_flag %}
+                <span class="report-redflag-badge">🚩 Red Flag</span>
+              {% endif %}
+              <span class="report-clause-num">#{{ loop.index }}</span>
+              <strong>{{ clause.clause_type or 'General' }}</strong>
+            </div>
+            <span class="severity-pill severity-{{ clause.severity | lower }}">
+              {{ clause.severity_icon() }} {{ clause.severity }}
+            </span>
+          </div>
+
+          <div class="report-clause-body">
+            {% if clause.simplified_text %}
+            <div class="report-clause-row">
+              <div class="row-label"><i class="bi bi-translate me-1"></i>Plain English</div>
+              <div class="row-text">{{ clause.simplified_text }}</div>
+            </div>
+            {% endif %}
+
+            {% if clause.translated_text %}
+            <div class="report-clause-row translated-row">
+              <div class="row-label">🌐 {{ contract.language | title }}</div>
+              <div class="row-text regional-text">{{ clause.translated_text }}</div>
+            </div>
+            {% endif %}
+
+            {% if clause.explanation %}
+            <div class="report-clause-row risk-row">
+              <div class="row-label"><i class="bi bi-exclamation-triangle me-1"></i>Risk</div>
+              <div class="row-text">{{ clause.explanation }}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="report-disclaimer mt-5">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Disclaimer:</strong> This report is generated by an AI system and is for
+        informational purposes only. It does not constitute legal advice. Please consult a
+        qualified lawyer before making any legal decisions based on this analysis.
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const sevData = {{ sev_counts_json | tojson }};
+const ctx2 = document.getElementById('reportChart').getContext('2d');
+new Chart(ctx2, {
+  type: 'doughnut',
+  data: {
+    labels: ['High', 'Medium', 'Low'],
+    datasets: [{
+      data: [sevData.High, sevData.Medium, sevData.Low],
+      backgroundColor: ['#dc3545', '#ffc107', '#28a745'],
+      borderWidth: 0,
+      hoverOffset: 8,
+    }],
+  },
+  options: {
+    cutout: '65%',
+    plugins: {
+      legend: { display: true, position: 'bottom' },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.label}: ${ctx.raw} clause(s)`,
+        },
+      },
+    },
+    animation: { animateRotate: true, duration: 900 },
+  },
+});
+</script>
+{% endblock %}

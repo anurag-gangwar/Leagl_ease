@@ -1,0 +1,25 @@
+# ── Legal-Ease Requirements ──
+
+# Web Framework
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Werkzeug==3.0.1
+python-dotenv==1.0.0
+
+# AI / LLM
+sarvamai>=0.1.27,<0.2
+
+# PDF Parsing
+PyMuPDF==1.24.8
+pdfplumber==0.10.3
+
+# OCR (for scanned/image-only PDFs; macOS also needs: brew install tesseract)
+pytesseract>=0.3.10,<0.4
+Pillow>=10.0,<12
+
+# Report Generation
+reportlab==4.1.0
+python-docx==1.1.0
+
+# Security
+MarkupSafe==2.1.3
